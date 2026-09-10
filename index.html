@@ -2,6 +2,7 @@
 <html lang="he" dir="rtl"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>מבחן הכנה רת"א - כטב"ם קטן</title>
+<!-- v162_APPLE_WEB: v161 Apple-compatible base preserved; added local multi-user web profiles with separate progress/statistics per browser profile; no question, image, logo or certificate changes -->
 <!-- v160: v159 preserved; added approved post-v159 question set and approved X8 illustration; no certificate design changes -->
 <!-- v159: v158 preserved; certificate upper-left MEUAS logo enlarged 50% and shifted right only -->
 <!-- v135: added completion certificate for full-bank practice above 80% -->
@@ -285,7 +286,7 @@ button:disabled{opacity:.45;cursor:default}.secondary{background:#5f6368}.feedba
     <div class="landing-sub">בתקנות הטיסה, מטאורולוגיה וידע טכני נדרש</div>
     <div class="landing-sub">בחר מצב עבודה. המבחן האקראי נשאר בן 75 שאלות; מצב התרגול מתקדם עד להשלמת כל המאגר.</div>
     <div id="landingBankCount" class="landing-sub">המאגר כולל 713 שאלות</div>
-  <div id="registeredNameBox" class="certificate-name-box hidden"><label>הנבחן הרשום</label><div id="registeredNameDisplay" style="font-size:20px;font-weight:800;margin-top:6px"></div></div>
+  <div id="registeredNameBox" class="certificate-name-box hidden"><label>הנבחן הפעיל</label><div id="registeredNameDisplay" style="font-size:20px;font-weight:800;margin-top:6px"></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px"><button type="button" id="switchWebProfileBtn" class="reset-practice">החלף משתמש</button><button type="button" id="exportWebProfileBtn" class="reset-practice" style="background:#1f5f8b!important;color:#fff">ייצוא גיבוי</button><button type="button" id="importWebProfileBtn" class="reset-practice">ייבוא גיבוי</button></div><input type="file" id="importWebProfileFile" accept="application/json,.json" style="display:none"></div>
 
     <div class="mode-grid">
       <button type="button" id="modeExamBtn" class="mode-card selected">
@@ -326,7 +327,21 @@ button:disabled{opacity:.45;cursor:default}.secondary{background:#5f6368}.feedba
     </div>
   </div>
 </div>
-<div id="firstRunNameOverlay" class="first-run-overlay hidden" aria-hidden="true"></div>
+<div id="firstRunNameOverlay" class="first-run-overlay hidden" aria-hidden="true">
+  <div class="first-run-card">
+    <h2>בחירת משתמש</h2>
+    <p>לכל משתמש במחשב או בטלפון נשמרים בנפרד הציונים וההתקדמות בדפדפן זה.</p>
+    <div id="webProfileList" style="display:grid;gap:8px;margin:14px 0"></div>
+    <div style="border-top:1px solid #d9dee5;margin-top:16px;padding-top:14px">
+      <label for="webProfileNameInput">משתמש חדש</label>
+      <input id="webProfileNameInput" type="text" autocomplete="name" placeholder="הזן שם מלא">
+      <div id="webProfileError" class="first-run-error"></div>
+      <button type="button" id="createWebProfileBtn">צור משתמש והתחל</button>
+    </div>
+    <div class="first-run-note">הנתונים נשמרים במכשיר ובדפדפן שבהם משתמשים. מומלץ להשתמש ב"ייצוא גיבוי" כדי להעביר התקדמות למכשיר אחר או לשחזר אותה במקרה הצורך.</div>
+    <button type="button" id="closeWebProfileBtn" class="secondary" style="margin-top:10px">ביטול</button>
+  </div>
+</div>
 <div id="examApp" style="display:none">
 <main>
 <div class="compact-exam-header">
@@ -589,9 +604,28 @@ function openFamilySelector(){
 }
 var APP_MODE='exam';
 var PRACTICE_BATCH_SIZE=25;
-var MEUAS_INSTANCE_ID='MASTER'; // replaced automatically in each candidate copy
-var MEUAS_CANDIDATE_NAME=''; // replaced automatically in each candidate copy
-var MEUAS_EMBEDDED_PROGRESS=null; // replaced in saved-progress candidate files
+var MEUAS_WEB_PROFILE_MODE=true;
+var MEUAS_WEB_PROFILE_REGISTRY_KEY='MEUAS_web_profiles_v1';
+var MEUAS_WEB_ACTIVE_PROFILE_KEY='MEUAS_web_active_profile_v1';
+function loadWebProfiles(){
+  try{var a=JSON.parse(localStorage.getItem(MEUAS_WEB_PROFILE_REGISTRY_KEY)||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}
+}
+function getActiveWebProfile(){
+  var profiles=loadWebProfiles(),active='';
+  try{active=localStorage.getItem(MEUAS_WEB_ACTIVE_PROFILE_KEY)||'';}catch(e){}
+  for(var i=0;i<profiles.length;i++){if(String(profiles[i].id)===String(active))return profiles[i];}
+  return null;
+}
+function makeWebProfileId(){
+  var rnd='';
+  try{if(window.crypto&&window.crypto.getRandomValues&&window.Uint32Array){var rv=new Uint32Array(2);window.crypto.getRandomValues(rv);rnd=rv[0].toString(36)+rv[1].toString(36);}}catch(e){}
+  if(!rnd)rnd=Math.random().toString(36).slice(2,12)+Date.now().toString(36);
+  return 'WEB-'+rnd;
+}
+var MEUAS_ACTIVE_WEB_PROFILE=getActiveWebProfile();
+var MEUAS_INSTANCE_ID=MEUAS_ACTIVE_WEB_PROFILE?String(MEUAS_ACTIVE_WEB_PROFILE.id):'WEB-NO-PROFILE';
+var MEUAS_CANDIDATE_NAME=MEUAS_ACTIVE_WEB_PROFILE?String(MEUAS_ACTIVE_WEB_PROFILE.name||''):'';
+var MEUAS_EMBEDDED_PROGRESS=null; // web version stores progress in browser profile storage
 function meuasStorageKey(base){return base+'__'+MEUAS_INSTANCE_ID;}
 var PRACTICE_STORAGE_KEY=meuasStorageKey('MEUAS_mastery_correct_ids_v1');
 
@@ -1226,7 +1260,10 @@ document.getElementById('importStatsFile').onchange=function(ev){
   function refreshRegisteredName(){var n=loadCertificateName();if(nameDisplay)nameDisplay.textContent=n;if(nameBox)nameBox.classList.toggle('hidden',!n);}
   refreshRegisteredName();
   if(nameOverlay){nameOverlay.classList.add('hidden');nameOverlay.setAttribute('aria-hidden','true');}
-  if(MEUAS_INSTANCE_ID==='MASTER'){
+  if(MEUAS_WEB_PROFILE_MODE){
+    if(masterBox)masterBox.classList.add('hidden');
+    refreshRegisteredName();
+  }else if(MEUAS_INSTANCE_ID==='MASTER'){
     if(masterBox)masterBox.classList.remove('hidden');
     if(nameBox)nameBox.classList.add('hidden');
   }else{
@@ -1238,7 +1275,7 @@ document.getElementById('importStatsFile').onchange=function(ev){
   var saveBtn=document.getElementById('saveProgressFileBtn');
   var saveSummaryBtn=document.getElementById('saveProgressSummaryBtn');
   var saveStatsBtn=document.getElementById('saveProgressStatsBtn');
-  if(MEUAS_INSTANCE_ID!=='MASTER'){
+  if(MEUAS_INSTANCE_ID!=='MASTER' && !MEUAS_WEB_PROFILE_MODE){
     if(saveBox)saveBox.classList.remove('hidden');
     [saveBtn,saveSummaryBtn,saveStatsBtn].forEach(function(b){
       if(b){b.classList.remove('hidden');b.addEventListener('click',saveProgressCandidateFile);}
@@ -1248,6 +1285,134 @@ document.getElementById('importStatsFile').onchange=function(ev){
     [saveSummaryBtn,saveStatsBtn].forEach(function(b){if(b)b.classList.add('hidden');});
   }
   var masterNameInput=document.getElementById('masterCandidateNameInput');if(masterNameInput)masterNameInput.addEventListener('keydown',function(e){if(e.key==='Enter'&&genBtn)genBtn.click();});
+
+  function renderWebProfileOverlay(){
+    if(!MEUAS_WEB_PROFILE_MODE||!nameOverlay)return;
+    var list=document.getElementById('webProfileList'),profiles=loadWebProfiles();
+    if(list){
+      list.innerHTML='';
+      profiles.forEach(function(p){
+        var b=document.createElement('button');
+        b.type='button';b.className='secondary';b.textContent=String(p.name||'משתמש');
+        b.style.width='100%';b.style.padding='11px';
+        b.addEventListener('click',function(){try{localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,String(p.id));}catch(e){} location.reload();});
+        list.appendChild(b);
+      });
+      if(!profiles.length){var d=document.createElement('div');d.className='landing-sub';d.textContent='עדיין לא נוצרו משתמשים במכשיר זה.';list.appendChild(d);}
+    }
+  }
+  function openWebProfileOverlay(force){
+    if(!MEUAS_WEB_PROFILE_MODE||!nameOverlay)return;
+    renderWebProfileOverlay();
+    nameOverlay.classList.remove('hidden');nameOverlay.setAttribute('aria-hidden','false');
+    var cancel=document.getElementById('closeWebProfileBtn');if(cancel)cancel.style.display=force?'none':'';
+    var inp=document.getElementById('webProfileNameInput');if(inp)setTimeout(function(){try{inp.focus();}catch(e){}},50);
+  }
+  function createWebProfile(){
+    var input=document.getElementById('webProfileNameInput'),err=document.getElementById('webProfileError');
+    var name=(input&&input.value||'').trim();
+    if(name.length<2){if(err)err.textContent='יש להזין שם משתמש.';if(input)input.focus();return;}
+    var profiles=loadWebProfiles();
+    for(var i=0;i<profiles.length;i++){
+      if(String(profiles[i].name||'').trim().toLocaleLowerCase()===name.toLocaleLowerCase()){
+        if(err)err.textContent='שם זה כבר קיים במכשיר. בחר אותו מהרשימה.';return;
+      }
+    }
+    var p={id:makeWebProfileId(),name:name,createdAt:new Date().toISOString()};profiles.push(p);
+    try{localStorage.setItem(MEUAS_WEB_PROFILE_REGISTRY_KEY,JSON.stringify(profiles));localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,p.id);}catch(e){if(err)err.textContent='הדפדפן חסם שמירת נתונים. יש לאפשר אחסון מקומי ולנסות שוב.';return;}
+    location.reload();
+  }
+  function safeBackupFileName(name){
+    return String(name||'USER').replace(/[^\u0590-\u05FFA-Za-z0-9_-]+/g,'_').replace(/^_+|_+$/g,'')||'USER';
+  }
+  function webProfileBackupPayload(){
+    if(!MEUAS_ACTIVE_WEB_PROFILE)return null;
+    var snap=getProgressSnapshot();
+    return {
+      format:'MEUAS_WEB_PROFILE_BACKUP',
+      version:1,
+      exportedAt:new Date().toISOString(),
+      profile:{id:String(MEUAS_ACTIVE_WEB_PROFILE.id),name:String(MEUAS_ACTIVE_WEB_PROFILE.name||MEUAS_CANDIDATE_NAME||''),createdAt:MEUAS_ACTIVE_WEB_PROFILE.createdAt||''},
+      progress:{masteryIds:Array.isArray(snap.masteryIds)?snap.masteryIds:[],studyStats:snap.studyStats&&typeof snap.studyStats==='object'?snap.studyStats:{questions:{},sessions:[]}}
+    };
+  }
+  function downloadOrShareBackup(){
+    var payload=webProfileBackupPayload();
+    if(!payload){alert('יש לבחור משתמש לפני יצירת גיבוי.');return;}
+    var text=JSON.stringify(payload,null,2),stamp=new Date().toISOString().slice(0,10),name='MEUAS_BACKUP_'+safeBackupFileName(payload.profile.name)+'_'+stamp+'.json';
+    try{
+      var file=null;
+      if(typeof File!=='undefined')file=new File([text],name,{type:'application/json'});
+      if(file&&navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+        navigator.share({title:'גיבוי התקדמות MEUAS',files:[file]}).catch(function(err){if(err&&err.name!=='AbortError')fallbackBackupDownload(text,name);});
+        return;
+      }
+    }catch(e){}
+    fallbackBackupDownload(text,name);
+  }
+  function fallbackBackupDownload(text,name){
+    try{
+      var blob=new Blob([text],{type:'application/json;charset=utf-8'}),U=window.URL||window.webkitURL,u=U.createObjectURL(blob),a=document.createElement('a');
+      a.href=u;a.download=name;a.style.display='none';document.body.appendChild(a);
+      if(typeof a.click==='function')a.click();else{var evt=document.createEvent('MouseEvents');evt.initMouseEvent('click',true,true,window,1,0,0,0,0,false,false,false,false,0,null);a.dispatchEvent(evt);}
+      setTimeout(function(){try{document.body.removeChild(a);}catch(e){}try{U.revokeObjectURL(u);}catch(e){}},1500);
+    }catch(e){alert('לא ניתן היה ליצור קובץ גיבוי בדפדפן זה.');}
+  }
+  function normalizeImportedBackup(obj){
+    if(!obj||obj.format!=='MEUAS_WEB_PROFILE_BACKUP'||Number(obj.version)!==1)throw new Error('format');
+    if(!obj.profile||!String(obj.profile.name||'').trim())throw new Error('profile');
+    var p=obj.progress||{},mastery=Array.isArray(p.masteryIds)?p.masteryIds.map(String):[],stats=p.studyStats;
+    if(!stats||typeof stats!=='object')stats={questions:{},sessions:[]};
+    if(!stats.questions||typeof stats.questions!=='object')stats.questions={};
+    if(!Array.isArray(stats.sessions))stats.sessions=[];
+    return {profile:{id:String(obj.profile.id||makeWebProfileId()),name:String(obj.profile.name).trim(),createdAt:obj.profile.createdAt||new Date().toISOString()},masteryIds:mastery,studyStats:stats};
+  }
+  function importWebProfileBackupFile(file){
+    if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(){
+      try{
+        var imp=normalizeImportedBackup(JSON.parse(String(reader.result||''))),profiles=loadWebProfiles(),targetId='',sameId=-1,sameName=-1;
+        for(var i=0;i<profiles.length;i++){
+          if(String(profiles[i].id)===imp.profile.id)sameId=i;
+          if(String(profiles[i].name||'').trim().toLocaleLowerCase()===imp.profile.name.toLocaleLowerCase())sameName=i;
+        }
+        if(sameId>=0){targetId=String(profiles[sameId].id);profiles[sameId].name=imp.profile.name;}
+        else if(sameName>=0){
+          if(!confirm('כבר קיים במכשיר משתמש בשם "'+imp.profile.name+'". להחליף את ההתקדמות שלו בנתוני הגיבוי?'))return;
+          targetId=String(profiles[sameName].id);
+        }else{
+          targetId=imp.profile.id||makeWebProfileId();
+          profiles.push({id:targetId,name:imp.profile.name,createdAt:imp.profile.createdAt||new Date().toISOString()});
+        }
+        localStorage.setItem(MEUAS_WEB_PROFILE_REGISTRY_KEY,JSON.stringify(profiles));
+        var masteryKey='MEUAS_mastery_correct_ids_v1__'+targetId,statsKey='MEUAS_study_stats_v2__'+targetId;
+        var masteryJson=JSON.stringify(imp.masteryIds),statsJson=JSON.stringify(imp.studyStats);
+        localStorage.setItem(masteryKey,masteryJson);
+        localStorage.setItem(statsKey,statsJson);
+        localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,targetId);
+        Promise.all([idbSet(masteryKey,masteryJson),idbSet(statsKey,statsJson)]).then(function(){
+          alert('הגיבוי יובא בהצלחה. המשתמש "'+imp.profile.name+'" ייפתח כעת.');
+          location.reload();
+        }).catch(function(){
+          alert('הגיבוי יובא. המשתמש "'+imp.profile.name+'" ייפתח כעת.');
+          location.reload();
+        });
+      }catch(e){alert('קובץ הגיבוי אינו תקין או שאינו שייך למערכת MEUAS.');}
+    };
+    reader.onerror=function(){alert('לא ניתן היה לקרוא את קובץ הגיבוי.');};
+    reader.readAsText(file,'utf-8');
+  }
+  var switchProfileBtn=document.getElementById('switchWebProfileBtn');if(switchProfileBtn)switchProfileBtn.addEventListener('click',function(){openWebProfileOverlay(false);});
+  var exportProfileBtn=document.getElementById('exportWebProfileBtn');if(exportProfileBtn)exportProfileBtn.addEventListener('click',downloadOrShareBackup);
+  var importProfileBtn=document.getElementById('importWebProfileBtn'),importProfileFile=document.getElementById('importWebProfileFile');
+  if(importProfileBtn&&importProfileFile)importProfileBtn.addEventListener('click',function(){importProfileFile.value='';importProfileFile.click();});
+  if(importProfileFile)importProfileFile.addEventListener('change',function(){if(this.files&&this.files[0])importWebProfileBackupFile(this.files[0]);});
+  var createProfileBtn=document.getElementById('createWebProfileBtn');if(createProfileBtn)createProfileBtn.addEventListener('click',createWebProfile);
+  var profileInput=document.getElementById('webProfileNameInput');if(profileInput)profileInput.addEventListener('keydown',function(e){if(e.key==='Enter')createWebProfile();});
+  var closeProfileBtn=document.getElementById('closeWebProfileBtn');if(closeProfileBtn)closeProfileBtn.addEventListener('click',function(){if(MEUAS_ACTIVE_WEB_PROFILE){nameOverlay.classList.add('hidden');nameOverlay.setAttribute('aria-hidden','true');}});
+  if(MEUAS_WEB_PROFILE_MODE&&!MEUAS_ACTIVE_WEB_PROFILE)openWebProfileOverlay(true);
+
   var closeCert=document.getElementById('closeCertificateBtn');if(closeCert)closeCert.addEventListener('click',function(){var ov=document.getElementById('certificateOverlay');ov.classList.add('hidden');ov.setAttribute('aria-hidden','true');});
   var printCert=document.getElementById('printCertificateBtn');if(printCert)printCert.addEventListener('click',function(){window.print();});
 
@@ -1268,7 +1433,9 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   var ss=document.getElementById('storageStatusBox');
-  if(ss && MEUAS_INSTANCE_ID!=='MASTER')ss.textContent='שמירת התקדמות פעילה';
+  if(ss && MEUAS_WEB_PROFILE_MODE){
+    ss.textContent=MEUAS_ACTIVE_WEB_PROFILE?'שמירת התקדמות פעילה עבור '+MEUAS_CANDIDATE_NAME:'יש לבחור או ליצור משתמש כדי להתחיל';
+  }else if(ss && MEUAS_INSTANCE_ID!=='MASTER')ss.textContent='שמירת התקדמות פעילה';
   updatePracticeProgress();
   updateCertificateEligibility();
   // Force a clean landing state after every reopen.
