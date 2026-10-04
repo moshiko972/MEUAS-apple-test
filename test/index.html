@@ -282,11 +282,11 @@ button:disabled{opacity:.45;cursor:default}.secondary{background:#5f6368}.feedba
   <div>משה אפשטיין</div>
   <div><a href="mailto:mepshtain@gmail.com">mepshtain@gmail.com</a></div>
 </div>
-    <div class="landing-title">מבחן הכנה לרישיון מטיס כטב״ם קטן</div><div class="landing-sub" style="font-weight:800">גרסת TEST v165</div>
+    <div class="landing-title">מבחן הכנה לרישיון מטיס כטב״ם קטן</div><div class="landing-sub" style="font-weight:800">גרסת TEST v166</div>
     <div class="landing-sub">בתקנות הטיסה, מטאורולוגיה וידע טכני נדרש</div>
     <div class="landing-sub">בחר מצב עבודה. המבחן האקראי נשאר בן 75 שאלות; מצב התרגול מתקדם עד להשלמת כל המאגר.</div>
     <div id="landingBankCount" class="landing-sub">המאגר כולל 713 שאלות</div>
-  <!-- v165 TEST: כפתור החלף משתמש נשאר מוסר. מנגנון ריבוי המשתמשים נשמר בקוד לצורך החזרה עתידית.
+  <!-- v166 TEST: כפתור החלף משתמש נשאר מוסר. מנגנון ריבוי המשתמשים נשמר בקוד לצורך החזרה עתידית.
        תיקון v165: כאשר קיים פרופיל יחיד ואין מזהה פרופיל פעיל תקף, הפרופיל היחיד נבחר אוטומטית ונשמר כפעיל. -->
   <div id="registeredNameBox" class="certificate-name-box hidden"><label>הנבחן הפעיל</label><div id="registeredNameDisplay" style="font-size:20px;font-weight:800;margin-top:6px"></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px"><button type="button" id="exportWebProfileBtn" class="reset-practice" style="background:#1f5f8b!important;color:#fff">ייצוא גיבוי</button><button type="button" id="importWebProfileBtn" class="reset-practice">ייבוא גיבוי</button></div><input type="file" id="importWebProfileFile" accept="application/json,.json" style="display:none"></div>
 
@@ -612,14 +612,32 @@ var MEUAS_WEB_ACTIVE_PROFILE_KEY='MEUAS_web_active_profile_v1';
 function loadWebProfiles(){
   try{var a=JSON.parse(localStorage.getItem(MEUAS_WEB_PROFILE_REGISTRY_KEY)||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}
 }
+var MEUAS_SINGLE_PROFILE_NAME_KEY='MEUAS_single_profile_name_v1';
+var MEUAS_SINGLE_PROFILE_ID='WEB-SINGLE';
 function getActiveWebProfile(){
-  var profiles=loadWebProfiles(),active='';
-  try{active=localStorage.getItem(MEUAS_WEB_ACTIVE_PROFILE_KEY)||'';}catch(e){}
-  for(var i=0;i<profiles.length;i++){if(String(profiles[i].id)===String(active))return profiles[i];}
-  // v165 TEST: single-user fallback. If exactly one profile exists, restore it automatically.
-  if(profiles.length===1){
-    try{localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,String(profiles[0].id));}catch(e){}
-    return profiles[0];
+  var profiles=loadWebProfiles(),active='',name='';
+  try{
+    name=(localStorage.getItem(MEUAS_SINGLE_PROFILE_NAME_KEY)||'').trim();
+    active=localStorage.getItem(MEUAS_WEB_ACTIVE_PROFILE_KEY)||'';
+  }catch(e){}
+  if(name){
+    try{localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,MEUAS_SINGLE_PROFILE_ID);}catch(e){}
+    return {id:MEUAS_SINGLE_PROFILE_ID,name:name};
+  }
+  var legacy=null;
+  for(var i=0;i<profiles.length;i++){if(String(profiles[i].id)===String(active)){legacy=profiles[i];break;}}
+  if(!legacy && profiles.length===1)legacy=profiles[0];
+  if(legacy){
+    name=String(legacy.name||'').trim();
+    try{
+      var oldId=String(legacy.id), oldMastery='MEUAS_mastery_correct_ids_v1__'+oldId, oldStats='MEUAS_study_stats_v2__'+oldId;
+      var newMastery='MEUAS_mastery_correct_ids_v1__'+MEUAS_SINGLE_PROFILE_ID, newStats='MEUAS_study_stats_v2__'+MEUAS_SINGLE_PROFILE_ID;
+      if(localStorage.getItem(newMastery)===null && localStorage.getItem(oldMastery)!==null)localStorage.setItem(newMastery,localStorage.getItem(oldMastery));
+      if(localStorage.getItem(newStats)===null && localStorage.getItem(oldStats)!==null)localStorage.setItem(newStats,localStorage.getItem(oldStats));
+      localStorage.setItem(MEUAS_SINGLE_PROFILE_NAME_KEY,name);
+      localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,MEUAS_SINGLE_PROFILE_ID);
+    }catch(e){}
+    return {id:MEUAS_SINGLE_PROFILE_ID,name:name,createdAt:legacy.createdAt||''};
   }
   return null;
 }
@@ -1325,8 +1343,8 @@ document.getElementById('importStatsFile').onchange=function(ev){
         if(err)err.textContent='שם זה כבר קיים במכשיר. בחר אותו מהרשימה.';return;
       }
     }
-    var p={id:makeWebProfileId(),name:name,createdAt:new Date().toISOString()};profiles.push(p);
-    try{localStorage.setItem(MEUAS_WEB_PROFILE_REGISTRY_KEY,JSON.stringify(profiles));localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,p.id);}catch(e){if(err)err.textContent='הדפדפן חסם שמירת נתונים. יש לאפשר אחסון מקומי ולנסות שוב.';return;}
+    var p={id:MEUAS_SINGLE_PROFILE_ID,name:name,createdAt:new Date().toISOString()};profiles=[p];
+    try{localStorage.setItem(MEUAS_WEB_PROFILE_REGISTRY_KEY,JSON.stringify(profiles));localStorage.setItem(MEUAS_SINGLE_PROFILE_NAME_KEY,name);localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,MEUAS_SINGLE_PROFILE_ID);}catch(e){if(err)err.textContent='הדפפן חסם שמירת נתונים. יש לאפשר אחסון מקומי ולנסות שוב.';return;}
     location.reload();
   }
   function safeBackupFileName(name){
