@@ -282,13 +282,11 @@ button:disabled{opacity:.45;cursor:default}.secondary{background:#5f6368}.feedba
   <div>משה אפשטיין</div>
   <div><a href="mailto:mepshtain@gmail.com">mepshtain@gmail.com</a></div>
 </div>
-    <div class="landing-title">מבחן הכנה לרישיון מטיס כטב״ם קטן</div><div class="landing-sub" style="font-weight:800">גרסת TEST v167</div>
+    <div class="landing-title">מבחן הכנה לרישיון מטיס כטב״ם קטן</div>
     <div class="landing-sub">בתקנות הטיסה, מטאורולוגיה וידע טכני נדרש</div>
     <div class="landing-sub">בחר מצב עבודה. המבחן האקראי נשאר בן 75 שאלות; מצב התרגול מתקדם עד להשלמת כל המאגר.</div>
     <div id="landingBankCount" class="landing-sub">המאגר כולל 713 שאלות</div>
-  <!-- v167 TEST: כפתור החלף משתמש נשאר מוסר. מנגנון ריבוי המשתמשים נשמר בקוד לצורך החזרה עתידית.
-       תיקון v165: כאשר קיים פרופיל יחיד ואין מזהה פרופיל פעיל תקף, הפרופיל היחיד נבחר אוטומטית ונשמר כפעיל. -->
-  <div id="registeredNameBox" class="certificate-name-box hidden"><label>הנבחן הפעיל</label><div id="registeredNameDisplay" style="font-size:20px;font-weight:800;margin-top:6px"></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px"><button type="button" id="exportWebProfileBtn" class="reset-practice" style="background:#1f5f8b!important;color:#fff">ייצוא גיבוי</button><button type="button" id="importWebProfileBtn" class="reset-practice">ייבוא גיבוי</button></div><input type="file" id="importWebProfileFile" accept="application/json,.json" style="display:none"></div>
+  <div id="registeredNameBox" class="certificate-name-box hidden"><label>הנבחן הפעיל</label><div id="registeredNameDisplay" style="font-size:20px;font-weight:800;margin-top:6px"></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px"><button type="button" id="switchWebProfileBtn" class="reset-practice">החלף משתמש</button><button type="button" id="exportWebProfileBtn" class="reset-practice" style="background:#1f5f8b!important;color:#fff">ייצוא גיבוי</button><button type="button" id="importWebProfileBtn" class="reset-practice">ייבוא גיבוי</button></div><input type="file" id="importWebProfileFile" accept="application/json,.json" style="display:none"></div>
 
     <div class="mode-grid">
       <button type="button" id="modeExamBtn" class="mode-card selected">
@@ -612,50 +610,10 @@ var MEUAS_WEB_ACTIVE_PROFILE_KEY='MEUAS_web_active_profile_v1';
 function loadWebProfiles(){
   try{var a=JSON.parse(localStorage.getItem(MEUAS_WEB_PROFILE_REGISTRY_KEY)||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}
 }
-var MEUAS_SINGLE_PROFILE_NAME_KEY='MEUAS_single_profile_name_v1';
-var MEUAS_SINGLE_PROFILE_ID='WEB-SINGLE';
-var MEUAS_SINGLE_PROFILE_COOKIE='MEUAS_single_profile_name_v1';
-function meuasReadCookie(name){
-  try{
-    var parts=document.cookie?document.cookie.split(';'):[];
-    for(var i=0;i<parts.length;i++){
-      var p=parts[i].trim(),eq=p.indexOf('=');
-      if(eq>0 && p.slice(0,eq)===name)return decodeURIComponent(p.slice(eq+1));
-    }
-  }catch(e){}
-  return '';
-}
-function meuasWriteProfileCookie(name){
-  try{document.cookie=MEUAS_SINGLE_PROFILE_COOKIE+'='+encodeURIComponent(String(name||''))+'; Max-Age=315360000; Path=/MEUAS-apple-test/; SameSite=Lax; Secure';}catch(e){}
-}
 function getActiveWebProfile(){
-  var profiles=loadWebProfiles(),active='',name='';
-  try{
-    name=(localStorage.getItem(MEUAS_SINGLE_PROFILE_NAME_KEY)||'').trim();
-    active=localStorage.getItem(MEUAS_WEB_ACTIVE_PROFILE_KEY)||'';
-    if(!name)name=String(meuasReadCookie(MEUAS_SINGLE_PROFILE_COOKIE)||'').trim();
-  }catch(e){}
-  if(name){
-    try{localStorage.setItem(MEUAS_SINGLE_PROFILE_NAME_KEY,name);localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,MEUAS_SINGLE_PROFILE_ID);localStorage.setItem(MEUAS_WEB_PROFILE_REGISTRY_KEY,JSON.stringify([{id:MEUAS_SINGLE_PROFILE_ID,name:name}]));}catch(e){}
-    meuasWriteProfileCookie(name);
-    return {id:MEUAS_SINGLE_PROFILE_ID,name:name};
-  }
-  var legacy=null;
-  for(var i=0;i<profiles.length;i++){if(String(profiles[i].id)===String(active)){legacy=profiles[i];break;}}
-  if(!legacy && profiles.length===1)legacy=profiles[0];
-  if(legacy){
-    name=String(legacy.name||'').trim();
-    try{
-      var oldId=String(legacy.id), oldMastery='MEUAS_mastery_correct_ids_v1__'+oldId, oldStats='MEUAS_study_stats_v2__'+oldId;
-      var newMastery='MEUAS_mastery_correct_ids_v1__'+MEUAS_SINGLE_PROFILE_ID, newStats='MEUAS_study_stats_v2__'+MEUAS_SINGLE_PROFILE_ID;
-      if(localStorage.getItem(newMastery)===null && localStorage.getItem(oldMastery)!==null)localStorage.setItem(newMastery,localStorage.getItem(oldMastery));
-      if(localStorage.getItem(newStats)===null && localStorage.getItem(oldStats)!==null)localStorage.setItem(newStats,localStorage.getItem(oldStats));
-      localStorage.setItem(MEUAS_SINGLE_PROFILE_NAME_KEY,name);
-      localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,MEUAS_SINGLE_PROFILE_ID);
-    }catch(e){}
-    meuasWriteProfileCookie(name);
-    return {id:MEUAS_SINGLE_PROFILE_ID,name:name,createdAt:legacy.createdAt||''};
-  }
+  var profiles=loadWebProfiles(),active='';
+  try{active=localStorage.getItem(MEUAS_WEB_ACTIVE_PROFILE_KEY)||'';}catch(e){}
+  for(var i=0;i<profiles.length;i++){if(String(profiles[i].id)===String(active))return profiles[i];}
   return null;
 }
 function makeWebProfileId(){
@@ -1360,11 +1318,8 @@ document.getElementById('importStatsFile').onchange=function(ev){
         if(err)err.textContent='שם זה כבר קיים במכשיר. בחר אותו מהרשימה.';return;
       }
     }
-    var p={id:MEUAS_SINGLE_PROFILE_ID,name:name,createdAt:new Date().toISOString()};profiles=[p];
-    try{localStorage.setItem(MEUAS_WEB_PROFILE_REGISTRY_KEY,JSON.stringify(profiles));localStorage.setItem(MEUAS_SINGLE_PROFILE_NAME_KEY,name);localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,MEUAS_SINGLE_PROFILE_ID);}catch(e){if(err)err.textContent='הדפפן חסם שמירת נתונים. יש לאפשר אחסון מקומי ולנסות שוב.';return;}
-    meuasWriteProfileCookie(name);
-    try{idbSet(MEUAS_SINGLE_PROFILE_NAME_KEY,name);}catch(e){}
-    try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
+    var p={id:makeWebProfileId(),name:name,createdAt:new Date().toISOString()};profiles.push(p);
+    try{localStorage.setItem(MEUAS_WEB_PROFILE_REGISTRY_KEY,JSON.stringify(profiles));localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,p.id);}catch(e){if(err)err.textContent='הדפדפן חסם שמירת נתונים. יש לאפשר אחסון מקומי ולנסות שוב.';return;}
     location.reload();
   }
   function safeBackupFileName(name){
@@ -1469,7 +1424,6 @@ document.getElementById('importStatsFile').onchange=function(ev){
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
   applyEmbeddedProgress();
   restoreDurableProgress().then(function(){
 
