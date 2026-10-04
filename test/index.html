@@ -282,11 +282,12 @@ button:disabled{opacity:.45;cursor:default}.secondary{background:#5f6368}.feedba
   <div>משה אפשטיין</div>
   <div><a href="mailto:mepshtain@gmail.com">mepshtain@gmail.com</a></div>
 </div>
-    <div class="landing-title">מבחן הכנה לרישיון מטיס כטב״ם קטן</div><div class="landing-sub" style="font-weight:800">גרסת TEST v164</div>
+    <div class="landing-title">מבחן הכנה לרישיון מטיס כטב״ם קטן</div><div class="landing-sub" style="font-weight:800">גרסת TEST v165</div>
     <div class="landing-sub">בתקנות הטיסה, מטאורולוגיה וידע טכני נדרש</div>
     <div class="landing-sub">בחר מצב עבודה. המבחן האקראי נשאר בן 75 שאלות; מצב התרגול מתקדם עד להשלמת כל המאגר.</div>
     <div id="landingBankCount" class="landing-sub">המאגר כולל 713 שאלות</div>
-  <!-- v164 TEST: כפתור החלף משתמש הוסר בלבד. מנגנון הפרופילים והפונקציות נשמרו בקוד כדי לאפשר החזרה עתידית. -->
+  <!-- v165 TEST: כפתור החלף משתמש נשאר מוסר. מנגנון ריבוי המשתמשים נשמר בקוד לצורך החזרה עתידית.
+       תיקון v165: כאשר קיים פרופיל יחיד ואין מזהה פרופיל פעיל תקף, הפרופיל היחיד נבחר אוטומטית ונשמר כפעיל. -->
   <div id="registeredNameBox" class="certificate-name-box hidden"><label>הנבחן הפעיל</label><div id="registeredNameDisplay" style="font-size:20px;font-weight:800;margin-top:6px"></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px"><button type="button" id="exportWebProfileBtn" class="reset-practice" style="background:#1f5f8b!important;color:#fff">ייצוא גיבוי</button><button type="button" id="importWebProfileBtn" class="reset-practice">ייבוא גיבוי</button></div><input type="file" id="importWebProfileFile" accept="application/json,.json" style="display:none"></div>
 
     <div class="mode-grid">
@@ -615,6 +616,11 @@ function getActiveWebProfile(){
   var profiles=loadWebProfiles(),active='';
   try{active=localStorage.getItem(MEUAS_WEB_ACTIVE_PROFILE_KEY)||'';}catch(e){}
   for(var i=0;i<profiles.length;i++){if(String(profiles[i].id)===String(active))return profiles[i];}
+  // v165 TEST: single-user fallback. If exactly one profile exists, restore it automatically.
+  if(profiles.length===1){
+    try{localStorage.setItem(MEUAS_WEB_ACTIVE_PROFILE_KEY,String(profiles[0].id));}catch(e){}
+    return profiles[0];
+  }
   return null;
 }
 function makeWebProfileId(){
